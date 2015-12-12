@@ -4,8 +4,6 @@ import copy, pickle
 from settings import *
 
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.cross_validation import train_test_split
 
 from libact.base.dataset import Dataset
 from libact.query_strategies import *
@@ -13,7 +11,6 @@ from libact.models import LogisticRegression
 from sklearn.preprocessing import MinMaxScaler
 from oridinal_clf import OrdClf
 from utils import *
-from joblib import Parallel, delayed
 
 def load_ord(filename):
     with open(filename, 'r') as f:
@@ -44,35 +41,35 @@ def train(X_train, y_train, X_test, y_test, n_ords, start_quota, quota):
 
     from utils import Timer
 
-#    with Timer('Rand') as t:
-#        E_in = []
-#        E_out = []
-#        model = OrdClf(LogisticRegression(), n_ords)
-#        for i in range(start_quota, start_quota+quota) :
-#            model.train(X_train[ : i + 1], y_train[ : i + 1])
-#            E_in.append(model.score(X_train[ : i + 1], y_train[ : i + 1]))
-#            E_out.append(model.score(X_test, y_test))
-#        ret.append(('random', E_in, E_out))
-#
+    with Timer('Rand') as t:
+        E_in = []
+        E_out = []
+        model = OrdClf(LogisticRegression(), n_ords)
+        for i in range(start_quota, start_quota+quota) :
+            model.train(X_train[ : i + 1], y_train[ : i + 1])
+            E_in.append(model.score(X_train[ : i + 1], y_train[ : i + 1]))
+            E_out.append(model.score(X_test, y_test))
+        ret.append(('random', E_in, E_out))
+
 #=============================ALBL
 
-    #with Timer('RandQS') as t:
-    #    dataset = Dataset(X_train, np.concatenate([y_train[:start_quota], [None] * (len(y_train) - start_quota)]))
-    #    datasets = [Dataset(X_train, np.concatenate([y_train[:start_quota]<=(i+1), [None] * (len(y_train) - start_quota)])) for i in range(n_ords-1)]
-    #    qs = RandMulQs(
-    #            dataset,
-    #            models=[
-    #                UncertaintySampling(
-    #                    datasets[i],
-    #                    model=LogisticRegression(),
-    #                    method='lc',
-    #                    rep=i+1
-    #                    ) for i in range(n_ords-1)
-    #                ],
-    #        )
-    #    model = OrdClf(LogisticRegression(), n_ords)
-    #    E_in, E_out = exp_once(qs, model, dataset, n_ords, quota, X_train, X_test, y_train, y_test)
-    #    ret.append(('randqs', E_in, E_out))
+    with Timer('RandQS') as t:
+        dataset = Dataset(X_train, np.concatenate([y_train[:start_quota], [None] * (len(y_train) - start_quota)]))
+        datasets = [Dataset(X_train, np.concatenate([y_train[:start_quota]<=(i+1), [None] * (len(y_train) - start_quota)])) for i in range(n_ords-1)]
+        qs = RandMulQs(
+                dataset,
+                models=[
+                    UncertaintySampling(
+                        datasets[i],
+                        model=LogisticRegression(),
+                        method='lc',
+                        rep=i+1
+                        ) for i in range(n_ords-1)
+                    ],
+            )
+        model = OrdClf(LogisticRegression(), n_ords)
+        E_in, E_out = exp_once(qs, model, dataset, n_ords, quota, X_train, X_test, y_train, y_test)
+        ret.append(('randqs', E_in, E_out))
 
 #=================================
 
@@ -120,8 +117,6 @@ def train(X_train, y_train, X_test, y_test, n_ords, start_quota, quota):
             model = OrdClf(LogisticRegression(), n_ords)
             E_in, E_out = exp_once(qs, model, dataset, n_ords, quota, X_train, X_test, y_train, y_test)
             ret.append(('linUCB'+str(alpha), E_in, E_out))
-            if qs.test_set == None:
-                print('Yes')
 
 #=================================
 

@@ -33,7 +33,6 @@ class LinUCB(QueryStrategy):
 
         self.linucb_ = None
 
-        self.hist = []
         self.hist_id = []
         self.hist_score = []
         self.hist_lbl = []
@@ -51,9 +50,7 @@ class LinUCB(QueryStrategy):
 
         if self.test_set == None:
             costs = np.abs(np.array(self.hist_lbl) - clf.predict(np.array([self.dataset.data[i[1]][0] for i in self.hist])))
-            return -1 * costs * np.array(self.hist_score)
-
-            return reward
+            return np.sum(-1 * costs / np.array(self.hist_score))
         else:
             cost = clf.score(self.test_set[0], self.test_set[1])
             return -cost
@@ -102,7 +99,6 @@ class LinUCB(QueryStrategy):
         else:
             ask_idx, s = self.linucb_.send((np.array(X), self.reward))
 
-        self.hist.append([s, unlabeled_entry_ids[ask_idx], -1])
         self.hist_id.append(unlabeled_entry_ids[ask_idx])
         self.hist_score.append(s)
 
