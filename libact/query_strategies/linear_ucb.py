@@ -33,6 +33,7 @@ class LinUCB(QueryStrategy):
 
         self.linucb_ = None
 
+        self.hist = []
         self.hist_id = []
         self.hist_score = []
         self.hist_lbl = []
@@ -52,12 +53,7 @@ class LinUCB(QueryStrategy):
             costs = np.abs(np.array(self.hist_lbl) - clf.predict(np.array([self.dataset.data[i[1]][0] for i in self.hist])))
             return -1 * costs * np.array(self.hist_score)
 
-            #reward = 0.
-            #costs = np.abs(np.array([i[2] for i in self.hist]) -
-            #               clf.predict(np.array([self.dataset.data[i[1]][0] for i in self.hist])))
-            #for i, s in enumerate(self.hist):
-            #    reward += -1./s[0] * costs[i]
-            #return reward
+            return reward
         else:
             cost = clf.score(self.test_set[0], self.test_set[1])
             return -cost
@@ -70,14 +66,8 @@ class LinUCB(QueryStrategy):
             invA = np.linalg.pinv(A)
             theta = np.dot(invA, b)
 
-            n_fet = x.shape[1]
-            p = np.zeros(n_fet)
-            for a in range(n_fet):
-                p[a] = np.dot(theta, x[:, a]) + self.alpha * \
-                    np.sqrt(np.dot(np.dot(x[:, a].T, invA), x[:, a]))
-
-            #p = np.dot(theta, x) + \
-            #    self.alpha * np.sqrt(np.einsum('ij,ji->i', np.dot(x.T, invA), x))
+            p = np.dot(theta, x) + \
+                self.alpha * np.sqrt(np.einsum('ij,ji->i', np.dot(x.T, invA), x))
 
             # next feature x and last reward
             at = np.argmax(p)
@@ -112,7 +102,7 @@ class LinUCB(QueryStrategy):
         else:
             ask_idx, s = self.linucb_.send((np.array(X), self.reward))
 
-        #self.hist.append([s, unlabeled_entry_ids[ask_idx], -1])
+        self.hist.append([s, unlabeled_entry_ids[ask_idx], -1])
         self.hist_id.append(unlabeled_entry_ids[ask_idx])
         self.hist_score.append(s)
 
