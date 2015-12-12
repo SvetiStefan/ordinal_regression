@@ -1,6 +1,7 @@
 
-import os, sys
+import os, sys, os
 import copy, pickle
+from settings import *
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,6 +30,7 @@ def exp_once(qs, model, dataset, n_ords, quota, X_train, X_test, y_train, y_test
     model = OrdClf(LogisticRegression(), n_ords)
     for i in range(quota) :
         ask_id = qs.make_query()
+        print(ask_id, end=', ')
         dataset.update(ask_id, y_train[ask_id])
 
         model.train(*(dataset.format_sklearn()))
@@ -37,74 +39,44 @@ def exp_once(qs, model, dataset, n_ords, quota, X_train, X_test, y_train, y_test
     return E_in_2, E_out_2
 
 
-def train_and_plot():
-    #with open('./data/housing.pkl', 'rb') as f:
-    #    X, y = pickle.load(f)
-    #with open('./data/housing_bin10.pkl', 'rb') as f:
-    #    X, y = pickle.load(f)
-    with open('./data/cpu_small/cpu_small_bin10.pkl', 'rb') as f:
-        X, y = pickle.load(f)
-
-    # TODO problem??
-    X = MinMaxScaler().fit_transform(X)
-
-    #X, y = load_ord('./data/cal_housing.data.ord')
-    #X, y = load_benchmark_data('./data/abalone/10bins/abalone_train_10.1')
-    #X, y = load_benchmark_data('./data/stocksdomain/10bins/stock_train_10.1')
-    #X, y = load_benchmark_data('./data/Auto-Mpg/10bin/auto.data_train_10.1')
-    #X, y = load_benchmark_data('./data/bostonhousing/10bins/housing_train_10.1')
-
-    split = train_test_split(range(X.shape[0]), test_size=0.8)
-    #np.random.shuffle(split[0])
-    #np.random.shuffle(split[1])
-
-    X_train, y_train = X[split[0]], y[split[0]]
-    #X_rew, y_rew = X[split[1][:int(len(split[1])/2)]], y[split[1][:int(len(split[1])/2)]]
-    #X_test, y_test = X[split[1][int(len(split[1])/2):]], y[split[1][int(len(split[1])/2):]]
-    X_test, y_test = X[split[1]], y[split[1]]
-
-    n_ords = 10
-    start_quota = 20
-    #quota = N - start_quota
-    quota = 400
-
+def train(X_train, y_train, X_test, y_test, n_ords, start_quota, quota):
     ret = []
 
     from utils import Timer
 
-    with Timer('Rand') as t:
-        E_in = []
-        E_out = []
-        model = OrdClf(LogisticRegression(), n_ords)
-        for i in range(start_quota, start_quota+quota) :
-            model.train(X_train[ : i + 1], y_train[ : i + 1])
-            E_in.append(model.score(X_train[ : i + 1], y_train[ : i + 1]))
-            E_out.append(model.score(X_test, y_test))
-        ret.append(('random', E_in, E_out))
-
+#    with Timer('Rand') as t:
+#        E_in = []
+#        E_out = []
+#        model = OrdClf(LogisticRegression(), n_ords)
+#        for i in range(start_quota, start_quota+quota) :
+#            model.train(X_train[ : i + 1], y_train[ : i + 1])
+#            E_in.append(model.score(X_train[ : i + 1], y_train[ : i + 1]))
+#            E_out.append(model.score(X_test, y_test))
+#        ret.append(('random', E_in, E_out))
+#
 #=============================ALBL
 
-    with Timer('RandQS') as t:
-        dataset = Dataset(X_train, np.concatenate([y_train[:start_quota], [None] * (len(y_train) - start_quota)]))
-        datasets = [Dataset(X_train, np.concatenate([y_train[:start_quota]<=(i+1), [None] * (len(y_train) - start_quota)])) for i in range(n_ords-1)]
-        qs = RandMulQs(
-                dataset,
-                models=[
-                    UncertaintySampling(
-                        datasets[i],
-                        model=LogisticRegression(),
-                        method='lc',
-                        rep=i+1
-                        ) for i in range(n_ords-1)
-                    ],
-            )
-        model = OrdClf(LogisticRegression(), n_ords)
-        E_in, E_out = exp_once(qs, model, dataset, n_ords, quota, X_train, X_test, y_train, y_test)
-        ret.append(('randqs', E_in, E_out))
+    #with Timer('RandQS') as t:
+    #    dataset = Dataset(X_train, np.concatenate([y_train[:start_quota], [None] * (len(y_train) - start_quota)]))
+    #    datasets = [Dataset(X_train, np.concatenate([y_train[:start_quota]<=(i+1), [None] * (len(y_train) - start_quota)])) for i in range(n_ords-1)]
+    #    qs = RandMulQs(
+    #            dataset,
+    #            models=[
+    #                UncertaintySampling(
+    #                    datasets[i],
+    #                    model=LogisticRegression(),
+    #                    method='lc',
+    #                    rep=i+1
+    #                    ) for i in range(n_ords-1)
+    #                ],
+    #        )
+    #    model = OrdClf(LogisticRegression(), n_ords)
+    #    E_in, E_out = exp_once(qs, model, dataset, n_ords, quota, X_train, X_test, y_train, y_test)
+    #    ret.append(('randqs', E_in, E_out))
 
 #=================================
 
-    for alpha in [1000., 100., 10., 1., 0.1]:
+    for alpha in [1000., 100., 10., 1.]:
         with Timer('linearUCB_test'+str(alpha)) as t:
             dataset = Dataset(X_train, np.concatenate([y_train[:start_quota], [None] * (len(y_train) - start_quota)]))
             datasets = [Dataset(X_train, np.concatenate([y_train[:start_quota]<=(i+1), [None] * (len(y_train) - start_quota)])) for i in range(n_ords-1)]
@@ -128,7 +100,7 @@ def train_and_plot():
 
 #=================================
 
-    for alpha in [1000., 100., 10., 1., 0.1]:
+    for alpha in [1000., 100., 10., 1.]:
         with Timer('linearUCB'+str(alpha)) as t:
             dataset = Dataset(X_train, np.concatenate([y_train[:start_quota], [None] * (len(y_train) - start_quota)]))
             datasets = [Dataset(X_train, np.concatenate([y_train[:start_quota]<=(i+1), [None] * (len(y_train) - start_quota)])) for i in range(n_ords-1)]
@@ -166,45 +138,58 @@ def train_and_plot():
 
     return ret
 
-def do_exp_once():
-    while True:
-        try:
-            ret = train_and_plot()
-            return ret
-        except:
-            continue
+def do_exp_once(dataset, n_ords, idx):
+    start_quota = 20
+
+    data_idx = data_name.index(dataset)
+    name = data_name[data_idx]
+
+    with open(out_paths[data_idx] % n_ords, 'rb') as f:
+        X, y = pickle.load(f)
+
+    with open(BASE_PATH + '%s/%s.%d.pkl' % (name, name, idx), 'rb') as f:
+        split = pickle.load(f)
+
+    while len(np.unique(((y[split[0]])[:start_quota]))) != n_ords:
+        np.random.shuffle(split[0])
+
+    X_train, y_train = X[split[0]], y[split[0]]
+    X_test, y_test = X[split[1]], y[split[1]]
+
+    scaler = MinMaxScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+
+    quota = len(split[0]) - start_quota
+
+    return train(X_train, y_train, X_test, y_test, n_ords, start_quota, quota)
 
 def main():
-    results = {}
-    rets = Parallel(n_jobs=20, backend="threading")(delayed(do_exp_once)() for i in range(60))
-    #do_exp_once()
+    #dataset = sys.argv[1]
+    #n_ords = int(sys.argv[2])
+    #idx = int(sys.argv[3])
 
-    for ret in rets:
-        for qs in ret:
-            results.setdefault(qs[0], []).append(qs[2])
+    dataset = 'stocksdomain'
+    n_ords = 5
+    idx = 0
 
-    with open('cpu_small_bin10.pkl', 'wb') as f:
-        pickle.dump(results, f)
+    result = do_exp_once(dataset, n_ords, idx)
 
-    query_num = np.arange(1, 150 + 1)
-    for res in results.keys():
-        query_num = np.arange(1, 150 + 1)
-        E_out = np.mean(results[res], axis=0)
-        E_out_std = np.std(results[res], axis=0)
-        #plt.plot(query_num, E_out, label=res)
-        plt.errorbar(query_num, E_out, yerr=E_out_std, label=res)
-    print('finished')
+    result_path = '/tmp2/b01902066/ordi_results/' + dataset + '/'
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
 
-    plt.xlabel('Number of Queries')
-    plt.ylabel('abs Error')
-    plt.title('< Experiment Result >')
-    plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=5)
-    #plt.show()
-    plt.show(block=True)
-    #plt.savefig('./png/' + str(i) + '.png')
-    #plt.close()
+    with open(result_path + '%s', 'wb') as f:
+        pickle.dump(result, f)
+    exit()
+
+    #rets = Parallel(n_jobs=20, backend="threading")(delayed(do_exp_once)(i) for i in range(60))
+    #results = {}
+    #for ret in rets:
+    #    for qs in ret:
+    #        results.setdefault(qs[0], []).append(qs[2])
 
 
 if __name__ == '__main__':
-    #np.random.seed(1)
+    np.random.seed(1)
     main()
