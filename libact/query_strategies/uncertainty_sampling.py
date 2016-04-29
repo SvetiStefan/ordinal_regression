@@ -58,6 +58,8 @@ class UncertaintySampling(QueryStrategy):
                 self.method
                 )
 
+        self.rep = kwargs.pop('rep', None)
+
     def make_query(self):
         """
         Choices for method (default 'lc'):
@@ -69,8 +71,12 @@ class UncertaintySampling(QueryStrategy):
         unlabeled_entry_ids, X_pool = zip(*dataset.get_unlabeled_entries())
 
         if self.method == 'lc':  # least confident
+            pred_real = self.model.predict_real(X_pool)
+            self.scores = [x for x in zip(
+                unlabeled_entry_ids, 1 - np.max(pred_real, 1)
+            )]
             ask_id = np.argmin(
-                np.max(self.model.predict_real(X_pool), axis=1)
+                np.max(pred_real, axis=1)
             )
 
         elif self.method == 'sm':  # smallest margin
@@ -88,3 +94,8 @@ class UncertaintySampling(QueryStrategy):
     def get_model(self):
         """Returns the model used by the last query"""
         return self.model
+
+    def get_score(self, X):
+        pred_real = self.model.predict_real(X)
+        return 1 - np.max(pred_real, 1)
+
